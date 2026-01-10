@@ -5,7 +5,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoryModule } from './category/category.module';
 import { User } from './user/user.entity';
+import { Category } from './category/category.entity';
 import { DatabaseInitService } from './database/database-init.service';
 
 @Module({
@@ -23,7 +25,7 @@ import { DatabaseInitService } from './database/database-init.service';
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_DATABASE', 'marketplacedb'),
-        entities: [User],
+        entities: [User, Category],
         synchronize: true, // Auto-update database schema when entities change
         autoLoadEntities: true, // Automatically load all entities
         logging: ['error', 'warn', 'schema'], // Log schema changes
@@ -36,6 +38,7 @@ import { DatabaseInitService } from './database/database-init.service';
     }),
     UserModule,
     AuthModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, DatabaseInitService],
