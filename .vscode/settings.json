@@ -1,0 +1,20 @@
+{
+  // Désactiver les vérifications d'orthographe
+  "cSpell.enabled": false,
+  
+  // Désactiver Grammarly
+  "grammarly.disabled": true,
+  
+  // Désactiver LanguageTool
+  "languageTool.enabled": false,
+  
+  // Désactiver les diagnostics de grammaire dans les commentaires
+  "editor.languageSuggestions": false,
+  
+  // Désactiver les suggestions de texte automatiques
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": false
+  }
+}
