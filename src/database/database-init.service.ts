@@ -67,37 +67,44 @@ export class DatabaseInitService implements OnModuleInit {
       },
       {
         label: 'Électronique',
-        description: 'Téléphones, ordinateurs, téléviseurs et gadgets électroniques',
+        description:
+          'Téléphones, ordinateurs, téléviseurs et gadgets électroniques',
         icon: 'ai-smartphone',
       },
       {
         label: 'Maison & Jardin',
-        description: 'Meubles, décoration, électroménager et articles de jardinage',
+        description:
+          'Meubles, décoration, électroménager et articles de jardinage',
         icon: 'ai-home-alt',
       },
       {
         label: 'Sports & Loisirs',
-        description: 'Équipements sportifs, jeux, instruments de musique et loisirs',
+        description:
+          'Équipements sportifs, jeux, instruments de musique et loisirs',
         icon: 'ai-football',
       },
       {
         label: 'Emploi',
-        description: 'Offres d\'emploi, services professionnels et opportunités de carrière',
+        description:
+          "Offres d'emploi, services professionnels et opportunités de carrière",
         icon: 'ai-briefcase',
       },
       {
         label: 'Services',
-        description: 'Services professionnels, cours particuliers et prestations',
+        description:
+          'Services professionnels, cours particuliers et prestations',
         icon: 'ai-tools',
       },
       {
         label: 'Animaux',
-        description: 'Animaux domestiques, accessoires et produits pour animaux',
+        description:
+          'Animaux domestiques, accessoires et produits pour animaux',
         icon: 'ai-heart',
       },
       {
         label: 'Livres & Médias',
-        description: 'Livres, films, musique, jeux vidéo et produits multimédias',
+        description:
+          'Livres, films, musique, jeux vidéo et produits multimédias',
         icon: 'ai-book',
       },
       {
@@ -112,7 +119,8 @@ export class DatabaseInitService implements OnModuleInit {
       },
       {
         label: 'Outils & Matériaux',
-        description: 'Outils de bricolage, matériaux de construction et fournitures',
+        description:
+          'Outils de bricolage, matériaux de construction et fournitures',
         icon: 'ai-wrench',
       },
       {

@@ -8,12 +8,14 @@ import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private mailService: MailService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -35,14 +37,27 @@ export class UserService {
       }
     }
 
-    const passwordToHash = createUserDto.password || createUserDto.password_create || '';
+    // Pour les sellers créés par l'admin, utiliser le CIN comme mot de passe par défaut
+    const isSeller = createUserDto.role === UserRole.SELLER;
+    let passwordToHash = createUserDto.password || '';
+
+    if (isSeller && !passwordToHash && createUserDto.cin) {
+      // Utiliser le CIN comme mot de passe par défaut pour les sellers
+      passwordToHash = createUserDto.cin;
+    }
+
     if (!passwordToHash) {
       throw new ConflictException('Le mot de passe est requis');
     }
     const hashedPassword = await bcrypt.hash(passwordToHash, 10);
+    const plainPassword = passwordToHash; // Garder le mot de passe en clair pour l'email
 
     // Convertir dateOfBirth de string à Date si fourni
-    const userData: Partial<User> & { password: string; dateOfBirth?: Date; photo?: Buffer } = {
+    const userData: Partial<User> & {
+      password: string;
+      dateOfBirth?: Date;
+      photo?: Buffer;
+    } = {
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
       email: createUserDto.email,
@@ -89,8 +104,25 @@ export class UserService {
     }
 
     const user = this.userRepository.create(userData);
+    const savedUser = await this.userRepository.save(user);
 
-    return await this.userRepository.save(user);
+    // Envoyer un email avec les identifiants si c'est un seller
+    if (isSeller && savedUser.email) {
+      try {
+        await this.mailService.sendSellerCredentials(
+          savedUser.email,
+          savedUser.firstName,
+          savedUser.lastName,
+          savedUser.email,
+          plainPassword,
+        );
+      } catch (error) {
+        // Ne pas bloquer la création si l'email échoue
+        console.error("Erreur lors de l'envoi de l'email:", error);
+      }
+    }
+
+    return savedUser;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -165,7 +197,7 @@ export class UserService {
           'user.updatedAt',
         ])
         .getMany();
-      
+
       // Convertir les photos Buffer en base64
       const result = users.map((user) => {
         if (user.photo) {
@@ -256,17 +288,17 @@ export class UserService {
               /^data:image\/\w+;base64,/,
               '',
             );
-            
+
             // Vérifier la taille de la photo (max 50 MB pour éviter les problèmes)
             const photoSizeBytes = (base64Data.length * 3) / 4;
             const maxSizeBytes = 50 * 1024 * 1024; // 50 MB
-            
+
             if (photoSizeBytes > maxSizeBytes) {
               throw new ConflictException(
                 `La photo est trop volumineuse (${Math.round(photoSizeBytes / 1024 / 1024)} MB). Maximum autorisé: 50 MB`,
               );
             }
-            
+
             updateData.photo = Buffer.from(base64Data, 'base64');
             console.log(
               `Photo converted to Buffer, size: ${updateData.photo.length} bytes (${Math.round(updateData.photo.length / 1024 / 1024)} MB)`,
@@ -316,7 +348,7 @@ export class UserService {
       throw new ConflictException(
         error instanceof Error
           ? error.message
-          : 'Erreur lors de la mise à jour de l\'utilisateur',
+          : "Erreur lors de la mise à jour de l'utilisateur",
       );
     }
   }

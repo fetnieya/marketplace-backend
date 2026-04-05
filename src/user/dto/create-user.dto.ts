@@ -5,6 +5,7 @@ import {
   IsString,
   MinLength,
   IsDateString,
+  ValidateIf,
 } from 'class-validator';
 import { UserRole } from '../user.entity';
 
@@ -43,13 +44,12 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @MinLength(6, {
+    message: 'Le mot de passe doit contenir au moins 6 caractères',
+  })
   password?: string; // Optionnel pour la mise à jour
 
-  @IsNotEmpty()
-  @IsString()
-  @MinLength(6)
-  password_create?: string; // Requis pour la création
+  // password_create n'est plus dans le DTO - il est géré par le service (utilise le CIN pour les sellers)
 
   @IsOptional()
   role?: UserRole;

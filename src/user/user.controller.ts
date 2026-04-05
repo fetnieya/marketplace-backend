@@ -30,6 +30,30 @@ export class UserController {
     return result;
   }
 
+  /** Profil vendeur public (boutique) — sans auth */
+  @Get('public/seller/:id')
+  async getPublicSeller(@Param('id') id: string) {
+    const user = await this.userService.findById(+id);
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new NotFoundException('Vendeur introuvable');
+    }
+    let photoOut: string | undefined;
+    if (user.photo && Buffer.isBuffer(user.photo)) {
+      photoOut = `data:image/jpeg;base64,${user.photo.toString('base64')}`;
+    }
+    const displayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      user.email;
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName,
+      phone: user.phone,
+      photo: photoOut,
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('sellers')
   async findSellers() {
@@ -53,6 +77,18 @@ export class UserController {
       console.warn('Returning empty array due to error in findSellers');
       // Retourner un tableau vide au lieu de lever une exception
       // Cela permet au frontend d'afficher "Aucun vendeur trouvé" au lieu d'une erreur
+      return [];
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('clients')
+  async findClients() {
+    try {
+      const clients = await this.userService.findByRole(UserRole.CLIENT);
+      return Array.isArray(clients) ? clients : [];
+    } catch (error) {
+      console.error('Error fetching clients:', error);
       return [];
     }
   }

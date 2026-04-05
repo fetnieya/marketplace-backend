@@ -68,18 +68,13 @@ export class CategoryService {
     }
 
     // Vérifier si le label est modifié et s'il existe déjà
-    if (
-      updateCategoryDto.label &&
-      updateCategoryDto.label !== category.label
-    ) {
+    if (updateCategoryDto.label && updateCategoryDto.label !== category.label) {
       const existingCategory = await this.categoryRepository.findOne({
         where: { label: updateCategoryDto.label },
       });
 
       if (existingCategory) {
-        throw new ConflictException(
-          'Category with this label already exists',
-        );
+        throw new ConflictException('Category with this label already exists');
       }
     }
 
