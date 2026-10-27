@@ -323,4 +323,72 @@ export class MailService {
       throw error;
     }
   }
+
+  /**
+   * Notifie l’admin qu’un vendeur a demandé une nouvelle catégorie.
+   * ADMIN_EMAIL dans .env, sinon SMTP_USER comme destinataire.
+   */
+  async sendCategoryRequestToAdmin(params: {
+    sellerName: string;
+    sellerEmail: string;
+    label: string;
+    description: string;
+  }): Promise<void> {
+    const adminTo =
+      this.configService.get<string>('ADMIN_EMAIL') ||
+      this.configService.get<string>('SMTP_USER');
+    if (!adminTo) {
+      console.warn(
+        'ADMIN_EMAIL / SMTP_USER non défini : email de demande de catégorie non envoyé',
+      );
+      return;
+    }
+
+    const from =
+      this.configService.get<string>('SMTP_FROM') ||
+      this.configService.get<string>('SMTP_USER') ||
+      'noreply@marketplace.com';
+
+    const mailOptions = {
+      from,
+      to: adminTo,
+      subject: `[Marketplace] Demande de catégorie : ${params.label}`,
+      html: `
+        <p><strong>Nouvelle demande de catégorie</strong></p>
+        <ul>
+          <li><strong>Vendeur :</strong> ${this.escapeHtml(params.sellerName)} (${this.escapeHtml(params.sellerEmail)})</li>
+          <li><strong>Catégorie proposée :</strong> ${this.escapeHtml(params.label)}</li>
+        </ul>
+        <p><strong>Description :</strong></p>
+        <p>${this.escapeHtml(params.description || '(aucune)')}</p>
+      `,
+    };
+
+    try {
+      if (!this.transporter) {
+        console.warn(
+          `Email demande catégorie non envoyé (SMTP non configuré) — ${params.label}`,
+        );
+        return;
+      }
+      await this.transporter.sendMail(mailOptions);
+      console.log(
+        `Notification demande de catégorie envoyée à ${adminTo} pour "${params.label}"`,
+      );
+    } catch (error) {
+      console.error(
+        `Erreur envoi email demande catégorie à ${adminTo}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 }

@@ -107,6 +107,10 @@ export class ProductService {
 
     // Exposer le nom et la photo du vendeur (sans renvoyer l'objet seller complet)
     const result = { ...product } as any;
+    // Normalize legacy/invalid states for clients: only "disponible" or "vendu".
+    if (result.status === ProductStatus.EN_ATTENTE || Number(result.quantity) <= 0) {
+      result.status = ProductStatus.VENDU;
+    }
     if (product.seller) {
       const seller = product.seller as any;
       result.sellerName =

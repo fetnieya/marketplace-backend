@@ -1,14 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './review.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { OrderItem } from '../order/order-item.entity';
+import { UserRole } from '../user/user.entity';
 
 @Injectable()
 export class ReviewService {
   constructor(
     @InjectRepository(Review)
     private reviewRepository: Repository<Review>,
+    @InjectRepository(OrderItem)
+    private orderItemRepository: Repository<OrderItem>,
   ) {}
 
   /** Liste tous les avis (admin) avec auteur, produit et vendeur du produit */
@@ -175,10 +184,60 @@ export class ReviewService {
     return { average, count };
   }
 
-  async create(userId: number, dto: CreateReviewDto): Promise<Review> {
+  private async hasPurchasedProduct(
+    userId: number,
+    productId: number,
+  ): Promise<boolean> {
+    const blockedStatuses = ['cancelled', 'canceled', 'failed', 'refunded'];
+    const row = await this.orderItemRepository
+      .createQueryBuilder('oi')
+      .innerJoin('oi.order', 'o')
+      .where('oi.productId = :productId', { productId })
+      .andWhere('o.userId = :userId', { userId })
+      .andWhere('LOWER(o.status) NOT IN (:...blockedStatuses)', {
+        blockedStatuses,
+      })
+      .select('oi.id', 'id')
+      .limit(1)
+      .getRawOne<{ id: number }>();
+    return !!row?.id;
+  }
+
+  async create(
+    userId: number,
+    dto: CreateReviewDto,
+    role?: UserRole,
+  ): Promise<Review> {
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new ForbiddenException('Utilisateur non autorisé.');
+    }
+
+    if (role && role !== UserRole.CLIENT) {
+      throw new ForbiddenException(
+        'Seuls les clients peuvent ajouter des commentaires.',
+      );
+    }
+
+    const allowed = await this.hasPurchasedProduct(userId, dto.productId);
+    if (!allowed) {
+      throw new ForbiddenException(
+        'Vous pouvez commenter uniquement les produits que vous avez deja achetes.',
+      );
+    }
+
+    const existing = await this.reviewRepository.findOne({
+      where: { userId, productId: dto.productId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Vous avez déjà laissé un commentaire pour ce produit.',
+      );
+    }
+
     const review = this.reviewRepository.create({
       ...dto,
       userId,
+      verifiedPurchase: true,
     });
     return this.reviewRepository.save(review);
   }

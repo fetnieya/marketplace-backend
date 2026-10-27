@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   ForbiddenException,
   NotFoundException,
@@ -10,6 +12,7 @@ import { OrderItem } from './order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CartService } from '../cart/cart.service';
 import { Product } from '../product/product.entity';
+import { ProductStatus } from '../product/product.entity';
 
 @Injectable()
 export class OrderService {
@@ -18,6 +21,8 @@ export class OrderService {
     private orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(Product)
+    private productRepository: Repository<Product>,
     private cartService: CartService,
   ) {}
 
@@ -41,7 +46,32 @@ export class OrderService {
   }
 
   async create(userId: number, dto: CreateOrderDto): Promise<Order> {
-    const total = dto.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    if (!dto.items?.length) {
+      throw new BadRequestException('Aucun article à commander.');
+    }
+
+    const productIds = dto.items.map((i) => Number(i.productId));
+    const products = await this.productRepository.findBy({ id: In(productIds) });
+    const byId = new Map(products.map((p) => [p.id, p]));
+
+    let total = 0;
+    for (const item of dto.items) {
+      const product = byId.get(Number(item.productId));
+      if (!product) {
+        throw new NotFoundException(`Produit introuvable (id=${item.productId}).`);
+      }
+      if (product.status !== ProductStatus.DISPONIBLE || Number(product.quantity) <= 0) {
+        throw new ConflictException(`Le produit « ${product.name} » est sold out.`);
+      }
+      if (Number(item.quantity) < 1) {
+        throw new BadRequestException('Quantité invalide.');
+      }
+      if (Number(item.quantity) > Number(product.quantity)) {
+        throw new ConflictException(`Stock insuffisant pour « ${product.name} ».`);
+      }
+      total += Number(product.price) * Number(item.quantity);
+    }
+
     const order = this.orderRepository.create({
       userId,
       total,
@@ -58,14 +88,20 @@ export class OrderService {
     });
     const saved = await this.orderRepository.save(order);
     for (const item of dto.items) {
+      const product = byId.get(Number(item.productId)) as Product;
       await this.orderItemRepository.save(
         this.orderItemRepository.create({
           orderId: saved.id,
           productId: item.productId,
           quantity: item.quantity,
-          priceAtPurchase: item.price,
+          priceAtPurchase: Number(product.price),
         }),
       );
+      product.quantity = Math.max(0, Number(product.quantity) - Number(item.quantity));
+      if (product.quantity <= 0) {
+        product.status = ProductStatus.VENDU;
+      }
+      await this.productRepository.save(product);
     }
     await this.cartService.clearCart(userId);
     const foundOrder = await this.orderRepository.findOne({

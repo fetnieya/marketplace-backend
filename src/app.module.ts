@@ -25,6 +25,7 @@ import { CartItem } from './cart/cart-item.entity';
 import { Order } from './order/order.entity';
 import { OrderItem } from './order/order-item.entity';
 import { DatabaseInitService } from './database/database-init.service';
+import { CategoryRequestModule } from './category-request/category-request.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { DatabaseInitService } from './database/database-init.service';
     UserModule,
     AuthModule,
     CategoryModule,
+    CategoryRequestModule,
     ProductModule,
     ReviewModule,
     CartModule,

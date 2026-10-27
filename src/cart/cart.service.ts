@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CartItem } from './cart-item.entity';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { ProductService } from '../product/product.service';
+import { ProductStatus } from '../product/product.entity';
 
 @Injectable()
 export class CartService {
@@ -51,18 +52,32 @@ export class CartService {
   }
 
   async addItem(userId: number, dto: AddToCartDto): Promise<CartItem[]> {
-    await this.productService.findOne(dto.productId);
+    const product = await this.productService.findOne(dto.productId);
+    if (!product || product.status !== ProductStatus.DISPONIBLE || Number(product.quantity) <= 0) {
+      throw new ConflictException('Ce produit est indisponible (sold out).');
+    }
     let item = await this.cartRepository.findOne({
       where: { userId, productId: dto.productId },
     });
+    const requestedQty = Number(dto.quantity) || 1;
+    if (requestedQty < 1) {
+      throw new BadRequestException('Quantité invalide.');
+    }
     if (item) {
-      item.quantity += dto.quantity;
+      const nextQty = item.quantity + requestedQty;
+      if (nextQty > Number(product.quantity)) {
+        throw new ConflictException('Stock insuffisant pour la quantité demandée.');
+      }
+      item.quantity = nextQty;
       await this.cartRepository.save(item);
     } else {
+      if (requestedQty > Number(product.quantity)) {
+        throw new ConflictException('Stock insuffisant pour la quantité demandée.');
+      }
       item = this.cartRepository.create({
         userId,
         productId: dto.productId,
-        quantity: dto.quantity,
+        quantity: requestedQty,
       });
       await this.cartRepository.save(item);
     }
@@ -78,6 +93,16 @@ export class CartService {
       where: { userId, productId },
     });
     if (!item) return;
+    const product = await this.productService.findOne(productId);
+    if (!product || product.status !== ProductStatus.DISPONIBLE || Number(product.quantity) <= 0) {
+      throw new ConflictException('Ce produit est indisponible (sold out).');
+    }
+    if (dto.quantity < 1) {
+      throw new BadRequestException('Quantité invalide.');
+    }
+    if (dto.quantity > Number(product.quantity)) {
+      throw new ConflictException('Stock insuffisant pour la quantité demandée.');
+    }
     item.quantity = dto.quantity;
     await this.cartRepository.save(item);
   }

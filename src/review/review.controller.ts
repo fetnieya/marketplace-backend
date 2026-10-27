@@ -79,7 +79,8 @@ export class ReviewController {
   @Post()
   async create(@Request() req: any, @Body() dto: CreateReviewDto) {
     const userId = req.user?.sub ?? req.user?.id;
-    return this.reviewService.create(userId, dto);
+    const role = req.user?.role as UserRole | undefined;
+    return this.reviewService.create(userId, dto, role);
   }
 
   @Post(':id/helpful')
